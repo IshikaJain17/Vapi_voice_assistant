@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Vapi Voice — SORA Style</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' ry='20' fill='%23121417'/%3E%3Ctext x='50' y='60' font-size='56' text-anchor='middle' fill='%23ffffff'%3E%F0%9F%8E%A4%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root{
+      --bg:#0b0c10;
+      --panel:#121417cc;
+      --panel-solid:#121417;
+      --text:#e6e6e6;
+      --muted:#a9b0ba;
+      --brand:#6aa8ff;
+      --brand-2:#9f7fff;
+      --accent:#24d292;
+      --danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background: radial-gradient(1200px 600px at 20% -10%, #1d234180 0%, transparent 60%),
+                  radial-gradient(1000px 600px at 120% 20%, #0b5bd440 0%, transparent 60%),
+                  radial-gradient(800px 500px at -10% 120%, #12d4a760 0%, transparent 60%),
+                  var(--bg);
+      display:grid; place-items:center; min-height:100dvh;
+      overflow:hidden;
+    }
+    .glass{
+      width:min(860px,92vw); border-radius:20px; padding:22px;
+      background:var(--panel); backdrop-filter: blur(16px) saturate(140%);
+      box-shadow: 0 20px 60px rgba(0,0,0,.40), inset 0 1px 0 rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.06);
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:12px;
+    }
+    .logo{
+      width:40px; height:40px; border-radius:12px; background:
+        conic-gradient(from 210deg, var(--brand) 0 25%, var(--brand-2) 25% 50%, #21d4a7 50% 75%, #4cc3ff 75% 100%);
+      box-shadow: 0 6px 24px #6aa8ff40, inset 0 0 0 1px #ffffff1a;
+    }
+    .title{font-weight:700; letter-spacing:.3px}
+    .status{
+      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px; font-size:.85rem;
+      background:#0f1218; color:#cfd3d7; border:1px solid #ffffff14;
+    }
+    .dot{width:8px; height:8px; border-radius:50%; background:#5f6b7a; box-shadow:0 0 0 0 rgba(0,0,0,0)}
+    .dot.idle{background:#5f6b7a}
+    .dot.live{background:#6aa8ff; box-shadow:0 0 16px #6aa8ff88}
+    .dot.listening{background:#24d292; box-shadow:0 0 16px #24d292a8}
+    .dot.speaking{background:#9f7fff; box-shadow:0 0 16px #9f7fffa8}
+    .sep{opacity:.35}
+
+    /* Main layout */
+    .layout{display:grid; grid-template-columns: 1fr 280px; gap:18px}
+    @media (max-width: 860px){ .layout{grid-template-columns: 1fr} }
+
+    /* Transcript area */
+    .chat{
+      background: #0c1016; border:1px solid #ffffff10; border-radius:16px; padding:14px;
+      max-height:50vh; overflow:auto;
+      box-shadow: inset 0 1px 0 #ffffff10;
+    }
+    .msg{display:flex; gap:10px; margin:10px 0;}
+    .bubble{
+      max-width: 85%;
+      padding:10px 12px; border-radius:14px; line-height:1.35;
+      background:#151a22; border:1px solid #ffffff12;
+    }
+    .me   .bubble{ background:#0e2a1f; border-color:#24d29255 }
+    .bot  .bubble{ background:#17122a; border-color:#9f7fff55 }
+    .meta{font-size:.74rem; color:var(--muted); margin-bottom:4px}
+    .avatar{
+      width:28px; height:28px; border-radius:8px; flex:0 0 auto;
+      background:#1b2030; display:grid; place-items:center; font-size:.9rem; opacity:.9
+    }
+
+    /* Control panel */
+    .panel{
+      background: var(--panel-solid); border:1px solid #ffffff10; border-radius:16px;
+      padding:16px; display:flex; flex-direction:column; gap:14px;
+    }
+
+    .center{
+      display:grid; place-items:center; padding:10px 0 6px;
+    }
+    .mic-wrap{
+      position:relative; width:120px; height:120px;
+      display:grid; place-items:center;
+    }
+    .halo{
+      position:absolute; inset:0; border-radius:999px;
+      transform: scale(1); opacity:.0; pointer-events:none;
+    }
+    .halo.listening{
+      animation: pulse 1.6s infinite;
+      background: radial-gradient(closest-side, #24d29244, transparent 70%);
+      box-shadow: 0 0 80px 10px #24d29230, inset 0 0 40px #24d29220;
+      opacity:1;
+    }
+    .halo.speaking{
+      animation: glow 1.3s infinite;
+      background: radial-gradient(closest-side, #9f7fff44, transparent 70%);
+      box-shadow: 0 0 80px 10px #9f7fff30, inset 0 0 40px #9f7fff20;
+      opacity:1;
+    }
+    @keyframes pulse{
+      0%{ transform:scale(0.95); opacity:.8}
+      50%{ transform:scale(1.05); opacity:1}
+      100%{ transform:scale(0.95); opacity:.8}
+    }
+    @keyframes glow{
+      0%{ box-shadow:0 0 0 0 #9f7fff30, inset 0 0 20px #9f7fff10}
+      50%{ box-shadow:0 0 40px 8px #9f7fff50, inset 0 0 40px #9f7fff25}
+      100%{ box-shadow:0 0 0 0 #9f7fff30, inset 0 0 20px #9f7fff10}
+    }
+
+    .mic{
+      width:92px; height:92px; border-radius:999px; border:none; cursor:pointer;
+      color:#fff; background:linear-gradient(180deg, #6aa8ff, #4d7dff);
+      display:grid; place-items:center; font-size:28px;
+      box-shadow: 0 12px 30px #6aa8ff55, inset 0 1px 0 #ffffffaa;
+      transition: transform .08s ease, filter .2s ease, background .2s ease;
+    }
+    .mic:active{ transform: scale(0.98) }
+    .mic.stop{ background:linear-gradient(180deg, #1f2328, #14171b); box-shadow: inset 0 1px 0 #ffffff33}
+    .hint{ text-align:center; font-size:.85rem; color:var(--muted) }
+
+    /* EQ bars */
+    .eq{
+      height:22px; display:flex; gap:3px; align-items:flex-end; justify-content:center; margin-top:6px;
+      opacity:.0; transition:opacity .2s;
+    }
+    .bar{
+      width:4px; height:6px; background:#9f7fff; border-radius:999px;
+      animation: bounce 1s infinite ease-in-out; transform-origin: bottom center;
+    }
+    .bar:nth-child(2){ animation-delay:.1s }
+    .bar:nth-child(3){ animation-delay:.2s }
+    .bar:nth-child(4){ animation-delay:.3s }
+    .bar:nth-child(5){ animation-delay:.4s }
+    @keyframes bounce{
+      0%,100%{ height:6px }
+      50%{ height:22px }
+    }
+    .eq.on{ opacity:1 }
+
+    /* Buttons */
+    .row{ display:flex; gap:8px; flex-wrap:wrap }
+    .btn{
+      cursor:pointer; border:none; padding:10px 12px; border-radius:12px; font-weight:600;
+      background:#1f2328; color:#fff; border:1px solid #ffffff12;
+    }
+    .btn.primary{ background:#2a66ff; border-color:#2a66ff; box-shadow:0 6px 20px #2a66ff55 }
+    .btn:disabled{ opacity:.5; cursor:not-allowed }
+
+    .small{ font-size:.78rem; color:var(--muted) }
+    .log{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      background:#0e1116; border:1px solid #ffffff10; border-radius:12px;
+      min-height:110px; max-height:220px; overflow:auto; padding:10px; white-space:pre-wrap;
+    }
+    a.inline{ color:#9fbdff; text-decoration:none; border-bottom:1px dotted #9fbdff66 }
+  </style>
+
+  <script type="module">
+      const PUBLIC_KEY = "ccfb91f0-f3b5-4b9c-849e-6212ffd83993";
+      const ASSISTANT_ID = "39fed6e9-4123-46b4-9290-888f86c64846";
+
+    // ── SDK LOADER (esm → jsDelivr fallback) ──────────────────────────────────
+    async function loadVapiModule() {
+      try {
+        const mod = await import("https://esm.sh/@vapi-ai/web@latest");
+        return mod.default || mod;
+      } catch (e) {
+        const mod = await import("https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/index.min.js");
+        return mod.default || mod;
+      }
+    }
+
+    // ── STATE ─────────────────────────────────────────────────────────────────
+    let Vapi = null;
+    let vapi = null;
+    let active = false;
+    let listenersAttached = false;
+
+    const $ = (id) => document.getElementById(id);
+    const chat = $("chat");
+    const log  = (msg) => {
+      $("log").textContent += ($("log").textContent ? "\n" : "") + msg;
+      $("log").scrollTop = $("log").scrollHeight;
+    };
+
+    const state = {
+      mode: "idle", // idle | live | listening | speaking
+      set(next){
+        this.mode = next;
+        // Status chip + dot
+        $("modeDot").className = "dot " + next;
+        $("modeText").textContent = next;
+        // Mic halo and EQ
+        $("halo").className = "halo " + (next === "listening" ? "listening" : next === "speaking" ? "speaking" : "");
+        $("eq").classList.toggle("on", next === "speaking");
+        // Buttons
+        $("start").disabled = active;
+        $("stop").disabled  = !active;
+        // Mic look
+        $("mic").classList.toggle("stop", active);
+        // ARIA live
+        $("ariaStatus").textContent = `State: ${next}`;
+      }
+    };
+
+    function addBubble(role, text){
+      const row = document.createElement("div");
+      row.className = "msg " + (role === "user" ? "me" : "bot");
+      row.innerHTML = `
+        <div class="avatar">${role === "user" ? "🧑" : "🤖"}</div>
+        <div>
+          <div class="meta">${role === "user" ? "You" : "Assistant"}</div>
+          <div class="bubble">${escapeHtml(text)}</div>
+        </div>`;
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function escapeHtml(s){ return s?.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) }
+
+    // ── INIT VAPI + EVENTS ────────────────────────────────────────────────────
+    async function initVapi() {
+      if (!Vapi) Vapi = await loadVapiModule();
+      vapi = new Vapi(PUBLIC_KEY);
+
+      if (!listenersAttached) {
+        // raw logs
+        vapi.on("error", (e) => { log(`⚠️ ${e?.message || e}`); state.set(active ? "live" : "idle"); });
+
+        // Transcripts + simple speaking heuristic
+        vapi.on("message", (m) => {
+          if (m.type === "transcript") {
+            if (m.role === "user") {
+              addBubble("user", m.transcript);
+            } else if (m.role === "assistant") {
+              addBubble("assistant", m.transcript);
+              // Heuristic: when assistant yields transcript, consider TTS speaking
+              state.set("speaking");
+              clearTimeout(state._speakT);
+              state._speakT = setTimeout(() => { if (active) state.set("live"); }, 1200);
+            }
+          }
+          if (m.type === "function-call") {
+            log(`🔧 function call → ${m.functionCall?.name}`);
+          }
+        });
+
+        // User speech detection → “listening”
+        vapi.on("speech-start", () => { state.set("listening"); log("🎤 you started speaking"); });
+        vapi.on("speech-end",   () => { if (active) state.set("live"); log("✅ you stopped speaking"); });
+
+        listenersAttached = true;
+      }
+    }
+
+    // ── CONTROL ───────────────────────────────────────────────────────────────
+    async function startCall(){
+      if (active) return;
+      try {
+        if (!vapi) await initVapi();
+        state.set("live");
+        await vapi.start(ASSISTANT_ID);
+        active = true;
+        state.set("live");
+        log("▶️ call started");
+        addBubble("assistant", "Hi! I’m ready. Ask me anything.");
+      } catch (e) {
+        log("⚠️ failed to start: " + (e?.message || e));
+        state.set("idle");
+      }
+    }
+
+    async function stopCall(){
+      if (!active) return;
+      try {
+        await vapi.stop();
+        active = false;
+        state.set("idle");
+        log("⏹ call stopped");
+      } catch (e) {
+        log("⚠️ failed to stop: " + (e?.message || e));
+      }
+    }
+
+    // Click mic toggles start/stop
+    window.addEventListener("DOMContentLoaded", async () => {
+      state.set("idle");
+      $("start").addEventListener("click", startCall);
+      $("stop").addEventListener("click", stopCall);
+      $("mic").addEventListener("click", () => active ? stopCall() : startCall());
+      // Preload SDK so first Start is instant
+      try { await initVapi(); } catch (e) { log("SDK load warning: " + (e?.message || e)); }
+    });
+
+    // Expose for debugging if you want to keep your old buttons too
+    window.startCall = startCall;
+    window.stopCall  = stopCall;
+  </script>
+</head>
+<body>
+  <div class="glass" role="region" aria-label="Voice Assistant">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <div class="title">Web Voice Assistant</div>
+          <div class="small">Mic requires <strong>HTTPS</strong> or <strong>http://localhost</strong></div>
+        </div>
+      </div>
+      <div class="status">
+        <span class="chip"><span class="dot idle" id="modeDot" aria-hidden="true"></span><span id="modeText">idle</span></span>
+        <span class="chip" title="Secure context required">🔒 Secure</span>
+        <span class="chip sep">Vapi</span>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Chat / Transcript -->
+      <section>
+        <div id="chat" class="chat" aria-live="polite" aria-label="Conversation transcript">
+          <!-- bubbles appear here -->
+        </div>
+        <div class="small" style="margin-top:10px">
+          Tips: Click the mic to start/stop • Your <code>PUBLIC_KEY</code> is embedded in the page • Assistant ID is used on start.
+        </div>
+
+        <div style="margin-top:12px" class="row">
+          <button id="start" class="btn primary">Start</button>
+          <button id="stop" class="btn" disabled>Stop</button>
+        </div>
+
+        <div id="log" class="log" aria-label="Debug log" aria-live="polite"></div>
+      </section>
+
+      <!-- Controls / Visualizer -->
+      <aside class="panel" aria-label="Microphone controls">
+        <div class="center">
+          <div class="mic-wrap">
+            <div id="halo" class="halo"></div>
+            <button id="mic" class="mic" aria-pressed="false" aria-label="Toggle voice call">
+              🎙️
+            </button>
+          </div>
+          <div id="eq" class="eq" aria-hidden="true">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          </div>
+          <div id="ariaStatus" class="hint" aria-live="polite">State: idle</div>
+          <div class="hint">Listening → pulsing green halo · Speaking → animated EQ</div>
+        </div>
+
+        <div>
+          <div class="small">Need to change keys? Edit near the top of the file:</div>
+          <pre class="log" style="min-height:auto;max-height:140px;white-space:pre;overflow:auto;">const PUBLIC_KEY   = "ccfb91f0-f3b5...";
+const ASSISTANT_ID = "39fed6e9-...";</pre>
+          <div class="small">Docs: <a class="inline" href="https://docs.vapi.ai" target="_blank" rel="noopener">Vapi Web SDK</a></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>
